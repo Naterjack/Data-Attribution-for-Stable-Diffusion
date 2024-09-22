@@ -158,3 +158,4 @@ ddpm-butterflies*/
 basic_*
 *.pt
 FineTuned*/
+TRAK/trak_results*/
