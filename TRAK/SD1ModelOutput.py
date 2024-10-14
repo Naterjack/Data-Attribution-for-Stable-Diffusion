@@ -9,17 +9,22 @@ from typing import Iterable
 
 import trak.modelout_functions
 
+MODEL_DIR = "sd1-cifar10-v2"
 IS_WINDOWS = False
+import os
+from pathlib import Path
 
 
 class SD1ModelOutput(trak.modelout_functions.AbstractModelOutput):
 
-    import os
     if IS_WINDOWS: 
-        p = "..\\FineTuned-SD1-cifar10"
+        folder_symbol = "\\" 
     else: #Assume UNIX-based
-        p = "../FineTuned-SD1-cifar10"
-    print(os.path.isdir(p))
+        folder_symbol = "/"
+
+    pwd = str(Path(__file__).resolve().parent.parent)
+    p = pwd + folder_symbol + MODEL_DIR + folder_symbol
+    assert(os.path.isdir(p))
     
     noise_scheduler = DDPMScheduler.from_pretrained(p, subfolder="scheduler")
 
