@@ -159,3 +159,4 @@ basic_*
 *.pt
 FineTuned*/
 TRAK/trak_results*/
+sd1-cifar10*/
