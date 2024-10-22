@@ -1,0 +1,166 @@
+from pathlib import Path
+from os.path import isdir
+from safetensors.torch import load_file
+import torch
+from typing import Iterable
+from transformers import CLIPTokenizer, CLIPTextModel
+from diffusers import AutoencoderKL, UNet2DConditionModel
+from datasets import load_dataset, Dataset
+from torchvision import transforms
+from torch.utils.data import DataLoader
+
+class Project_Config(object):
+    def __init__(self,
+                 PWD: str = "default",
+                 IS_WINDOWS: bool = False,
+                 IS_CUDA: bool = True,
+                 ) -> None:
+        self.IS_WINDOWS = IS_WINDOWS
+        if self.IS_WINDOWS: 
+            self.folder_symbol = "\\" 
+        else: #Assume UNIX-based
+            self.folder_symbol = "/"
+
+        if PWD == "default":
+            self.PWD = str(Path(__file__).resolve().parent.parent)
+        else:
+            self.PWD = PWD
+        self.IS_CUDA = IS_CUDA;
+
+class Model_Config(object):
+    def __init__(self, 
+                 PROJECT_CONFIG: Project_Config, 
+                 MODEL_DIR: str,
+                 NUM_CHECKPOINTS: int = 1,
+                 ITERATIONS_PER_CHECKPOINT: int = 1000) -> None:
+        self.PROJECT_CONFIG = PROJECT_CONFIG
+        self.MODEL_DIR = MODEL_DIR
+        self.NUM_CHECKPOINTS = NUM_CHECKPOINTS
+        self.ITERATIONS_PER_CHECKPOINT = ITERATIONS_PER_CHECKPOINT
+
+    def getModelDirectory(self):
+        p = (self.PROJECT_CONFIG.PWD 
+             + self.PROJECT_CONFIG.folder_symbol 
+             + self.MODEL_DIR 
+             + self.PROJECT_CONFIG.folder_symbol)
+        assert(isdir(p))
+        return p
+    
+    def loadCheckpoints(self, 
+                        p: str, 
+                        CONVERT_SAFETENSORS_TO_CKPT: bool) -> Iterable[torch.Tensor]:
+        ckpt_files = []
+        #s/o https://gist.github.com/madaan/6c9be9613e6760b7dee79bdfa621fc0f
+        for i in range(1, self.NUM_CHECKPOINTS+1):
+            filename = (
+                        p + 
+                        "checkpoint-" + str(i*self.ITERATIONS_PER_CHECKPOINT) + self.PROJECT_CONFIG.folder_symbol + 
+                        "unet" + self.PROJECT_CONFIG.folder_symbol 
+                        + "diffusion_pytorch_model.bin"
+                        )
+            if CONVERT_SAFETENSORS_TO_CKPT:
+                ckpt_safetensors = load_file(filename.replace(".bin", ".safetensors"))
+                torch.save(ckpt_safetensors, filename)
+            ckpt_files.append(filename)
+            #ckpt = torch.load(ckpt_filename)
+        
+        ckpts = [torch.load(ckpt, map_location='cpu') for ckpt in ckpt_files]
+        return ckpts
+    
+    def loadModelComponents(self, 
+                            p: str) -> tuple[CLIPTokenizer, CLIPTextModel, AutoencoderKL, UNet2DConditionModel]:
+        tokenizer = CLIPTokenizer.from_pretrained(
+            p, subfolder="tokenizer",
+        )
+        text_encoder = CLIPTextModel.from_pretrained(
+            p, subfolder="text_encoder",
+        )
+        vae = AutoencoderKL.from_pretrained(
+            p, subfolder="vae",
+        )
+        unet = UNet2DConditionModel.from_pretrained(
+            p, subfolder="unet",
+        )
+        return tokenizer, text_encoder, vae, unet
+    
+class Dataset_Config(object):
+    def __init__(self, 
+                 huggingface_slug: str
+                 ) -> None:
+        self.huggingface_slug = huggingface_slug
+        self.dataset = load_dataset(self.huggingface_slug, split="train")
+
+class CIFAR_10_Config(Dataset_Config):
+    def __init__(self, 
+                 huggingface_slug: str = "uoft-cs/cifar10",
+                 existing_image_column_name: str = "img", 
+                 existing_caption_column_name: str = "label",
+                 new_image_column_name: str = "image", 
+                 new_caption_column_name: str = "label_txt",
+                 ) -> None:
+        super().__init__(huggingface_slug)
+        # Dataloader
+        #https://huggingface.co/datasets/
+        self.image_column = new_image_column_name
+        self.caption_column = new_caption_column_name
+
+        self.dataset = self.dataset.rename_column(existing_image_column_name, new_image_column_name)
+
+        cl = self.dataset.features[existing_caption_column_name]
+
+        self.dataset = self.dataset.map(lambda x, cIn, cOut: {cOut: cl.int2str(x[cIn])}, 
+                                        fn_kwargs={
+                                            "cIn": existing_caption_column_name, 
+                                            "cOut": new_caption_column_name
+                                            }
+                                        )
+        
+        self.dataset = self.dataset.remove_columns(column_names=[existing_caption_column_name])
+
+        self.__train_transforms = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize([0.5], [0.5]),
+            ]
+        )
+
+    def __setTokenizer(self, tokenizer: CLIPTokenizer | None):
+        #Okay so I _think_ this will work to trick GC into doing what I want
+        self.tokenizer = tokenizer
+    
+    def __destroyTokenizer(self):
+        self.__setTokenizer(None)
+
+    # Preprocessing the datasets.
+    # We need to tokenize input captions and transform the images.
+    def __tokenize_captions(self, examples, is_train=True):
+        inputs = self.tokenizer(
+            examples[self.caption_column], max_length=self.tokenizer.model_max_length, padding="max_length", truncation=True, return_tensors="pt"
+        )
+        return inputs.input_ids
+
+    #TODO: Convert this to private
+    def preprocess_train(self, examples):
+            images = [image.convert("RGB") for image in examples[self.image_column]]
+            examples["pixel_values"] = [self.__train_transforms(image) for image in images]
+            examples["input_ids"] = self.__tokenize_captions(examples)
+            return examples
+
+    def preprocess(self, tokenizer: CLIPTokenizer):
+        self.__setTokenizer(tokenizer)
+        train_dataset = self.dataset.with_transform(self.preprocess_train)
+        #So ".with_transform" seems to be a JIT based vibe rather than being done ahead of time
+        # This is kinda tragic, and it means we can't simply destroy the tokenzier once we're done
+        #self.__destroyTokenizer()
+        return train_dataset
+
+    def collate_fn(examples):
+            pixel_values = torch.stack([example["pixel_values"] for example in examples])
+            pixel_values = pixel_values.to(memory_format=torch.contiguous_format).float()
+            input_ids = torch.stack([example["input_ids"] for example in examples])
+            return {"pixel_values": pixel_values, "input_ids": input_ids}
+
+
+
+if __name__ == "__main__":
+    c10 = CIFAR_10_Config()
