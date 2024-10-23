@@ -20,6 +20,15 @@ ITERATIONS_PER_CHECKPOINT = 10000
 TRAK_SAVE_DIR = "trak_results_v2"
 MODEL_DIR = "sd1-cifar10-v2"
 
+
+#Python actually high key stinks
+# AFAICT the only way to fix this is to make the whole project a module
+#   Which is already annoying in theory and worse in this case since you cant have hypens in module names
+import sys
+import os
+PARENT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(PARENT_DIR)
+
 from utils.config import Project_Config, Model_Config, CIFAR_10_Config
 
 project_config = Project_Config(
