@@ -32,7 +32,7 @@ sys.path.append(PARENT_DIR)
 from utils.config import Project_Config, Model_Config, CIFAR_10_Config
 
 project_config = Project_Config(
-    CUDA = True,
+    IS_CUDA = True,
     IS_WINDOWS = False,
 )
 
@@ -40,6 +40,7 @@ model_config = Model_Config(
     PROJECT_CONFIG=project_config,
     MODEL_DIR=MODEL_DIR,
     NUM_CHECKPOINTS=NUM_CHECKPOINTS,
+    ITERATIONS_PER_CHECKPOINT=10000,
 )
 
 dataset_config = CIFAR_10_Config(new_image_column_name="image",
