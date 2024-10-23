@@ -14,10 +14,12 @@ from tqdm import tqdm
 CONVERT_SAFETENSORS_TO_CKPT = False
 CUDA = True
 UPDATE_FEATURIZATION = True
+PROFILE_GPU = True
+EARLY_EXIT = 100
 IS_WINDOWS = False
 NUM_CHECKPOINTS = 10
 ITERATIONS_PER_CHECKPOINT = 10000
-TRAK_SAVE_DIR = "trak_results_v2"
+TRAK_SAVE_DIR = "trak_results_profiling"
 MODEL_DIR = "sd1-cifar10-v2"
 
 
@@ -88,11 +90,10 @@ torch.cuda.empty_cache()
 # TRAKer loads the provided checkpoint and also associates
 
 # the provided (unique) model_id with the checkpoint.
-#model_id = 0
-#traker.load_checkpoint(ckpt, model_id=model_id)
 weight_dtype = torch.float32
 
-if UPDATE_FEATURIZATION:
+def updateTRAKFeatures():
+    i=0
     for model_id, ckpt in enumerate(tqdm(ckpts)):
         traker.load_checkpoint(ckpt, model_id=model_id)
 
@@ -114,6 +115,11 @@ if UPDATE_FEATURIZATION:
             # using the checkpoint loaded above.
 
             traker.featurize(batch=batch, num_samples=batch[0].shape[0])
+            if PROFILE_GPU:
+                i += 1
+                if i >= EARLY_EXIT:
+                    return 0
+            
 
 
         # Tells TRAKer that we've given it all the information, at which point
@@ -123,3 +129,15 @@ if UPDATE_FEATURIZATION:
         # (scoring target examples).
 
     traker.finalize_features()
+
+if UPDATE_FEATURIZATION:
+    if PROFILE_GPU:
+        from torch.profiler import profile, record_function, ProfilerActivity
+        with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
+            with record_function("trak_featurisation"):
+                updateTRAKFeatures()
+        
+        print(prof.key_averages(group_by_input_shape=True).table(sort_by="cuda_time_total", row_limit=30))
+        prof.export_chrome_trace("trak_trace.json")
+    else:
+        updateTRAKFeatures()
