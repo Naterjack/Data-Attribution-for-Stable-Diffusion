@@ -154,7 +154,7 @@ class CIFAR_10_Config(Dataset_Config):
         #self.__destroyTokenizer()
         return train_dataset
 
-    def collate_fn(examples): #This might be a breaking change, we will see
+    def collate_fn(self, examples): #This might be a breaking change, we will see
         pixel_values = torch.stack([example["pixel_values"] for example in examples])
         pixel_values = pixel_values.to(memory_format=torch.contiguous_format).float()
         input_ids = torch.stack([example["input_ids"] for example in examples])
