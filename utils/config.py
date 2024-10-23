@@ -32,7 +32,7 @@ class Model_Config(object):
                  PROJECT_CONFIG: Project_Config, 
                  MODEL_DIR: str,
                  NUM_CHECKPOINTS: int = 1,
-                 ITERATIONS_PER_CHECKPOINT: int = 1000) -> None:
+                 ITERATIONS_PER_CHECKPOINT: int = 10000) -> None:
         self.PROJECT_CONFIG = PROJECT_CONFIG
         self.MODEL_DIR = MODEL_DIR
         self.NUM_CHECKPOINTS = NUM_CHECKPOINTS
