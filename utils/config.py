@@ -48,15 +48,17 @@ class Model_Config(object):
     
     def loadCheckpoints(self, 
                         p: str, 
-                        CONVERT_SAFETENSORS_TO_CKPT: bool) -> Iterable[torch.Tensor]:
+                        CONVERT_SAFETENSORS_TO_CKPT: bool,
+                        checkpoint_file_name: str = "diffusion_pytorch_model",
+                        checkpoint_subfolder: str = "unet") -> Iterable[torch.Tensor]:
         ckpt_files = []
         #s/o https://gist.github.com/madaan/6c9be9613e6760b7dee79bdfa621fc0f
         for i in range(1, self.NUM_CHECKPOINTS+1):
             filename = (
                         p + 
                         "checkpoint-" + str(i*self.ITERATIONS_PER_CHECKPOINT) + self.PROJECT_CONFIG.folder_symbol + 
-                        "unet" + self.PROJECT_CONFIG.folder_symbol 
-                        + "diffusion_pytorch_model.bin"
+                        checkpoint_subfolder + self.PROJECT_CONFIG.folder_symbol 
+                        + checkpoint_file_name + ".bin"
                         )
             if CONVERT_SAFETENSORS_TO_CKPT:
                 ckpt_safetensors = load_file(filename.replace(".bin", ".safetensors"))
@@ -82,7 +84,33 @@ class Model_Config(object):
             p, subfolder="unet",
         )
         return tokenizer, text_encoder, vae, unet
-    
+
+class LoRA_Model_Config(Model_Config):
+
+    def loadLoRAUnet(self,
+                     p: str,
+                     checkpoint_index: int,
+                     base_unet_huggingface_slug: str = "stable-diffusion-v1-5/stable-diffusion-v1-5",
+                     checkpoint_file_name: str = "pytorch_lora_weights.safetensors"
+                     ) -> UNet2DConditionModel:
+        unet = UNet2DConditionModel.from_pretrained(
+            base_unet_huggingface_slug, subfolder="unet",
+        )
+        ### Again the following is based on train_text_to_image_lora.py
+        unet.requires_grad_(False)
+        # Freeze the unet parameters before adding adapters
+        for param in unet.parameters():
+            param.requires_grad_(False)
+
+        lora_file = (
+                    p + 
+                    "checkpoint-" + str((checkpoint_index+1)*self.ITERATIONS_PER_CHECKPOINT) +
+                    self.PROJECT_CONFIG.folder_symbol +
+                    checkpoint_file_name
+                    )
+        unet.load_attn_procs(lora_file)
+        return unet
+        
 class Dataset_Config(object):
     def __init__(self, 
                  huggingface_slug: str

@@ -12,15 +12,11 @@ from tqdm import tqdm
 
 ####CONFIG####
 CONVERT_SAFETENSORS_TO_CKPT = False
-CUDA = True
 UPDATE_FEATURIZATION = True
-PROFILE_GPU = True
-EARLY_EXIT = 100
-IS_WINDOWS = False
-NUM_CHECKPOINTS = 10
-ITERATIONS_PER_CHECKPOINT = 10000
-TRAK_SAVE_DIR = "trak_results_profiling"
-MODEL_DIR = "sd1-cifar10-v2"
+PROFILE_GPU = False
+EARLY_EXIT = 0
+TRAK_SAVE_DIR = "trak_results_lora"
+IS_LORA = True
 
 
 #Python actually high key stinks
@@ -31,36 +27,72 @@ import os
 PARENT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(PARENT_DIR)
 
-from utils.config import Project_Config, Model_Config, CIFAR_10_Config
+from utils.config import Project_Config, Model_Config, CIFAR_10_Config, LoRA_Model_Config
 
 project_config = Project_Config(
     IS_CUDA = True,
     IS_WINDOWS = False,
 )
 
-model_config = Model_Config(
-    PROJECT_CONFIG=project_config,
-    MODEL_DIR=MODEL_DIR,
-    NUM_CHECKPOINTS=NUM_CHECKPOINTS,
-    ITERATIONS_PER_CHECKPOINT=10000,
-)
+if IS_LORA:
+    model_config = LoRA_Model_Config(
+        PROJECT_CONFIG=project_config,
+        MODEL_DIR="sd1-cifar10-v2-lora",
+        NUM_CHECKPOINTS=10,
+        ITERATIONS_PER_CHECKPOINT=10000,
+    )
+else:
+    model_config = Model_Config(
+        PROJECT_CONFIG=project_config,
+        MODEL_DIR="sd1-cifar10-v2",
+        NUM_CHECKPOINTS=10,
+        ITERATIONS_PER_CHECKPOINT=10000,
+    )
 
 dataset_config = CIFAR_10_Config(new_image_column_name="image",
                                  new_caption_column_name="label_txt")
 
 p = model_config.getModelDirectory()
-ckpts = model_config.loadCheckpoints(p, CONVERT_SAFETENSORS_TO_CKPT=CONVERT_SAFETENSORS_TO_CKPT)
 
-tokenizer, text_encoder, vae, unet = model_config.loadModelComponents(p)
+if IS_LORA:
+    tokenizer, text_encoder, vae, _ = model_config.loadModelComponents("stable-diffusion-v1-5/stable-diffusion-v1-5")
+    unet = model_config.loadLoRAUnet(p,0)
+    ckpts = range(model_config.NUM_CHECKPOINTS)
+else:
+    ckpts = model_config.loadCheckpoints(p, CONVERT_SAFETENSORS_TO_CKPT)
+    tokenizer, text_encoder, vae, unet = model_config.loadModelComponents(p)
 
-text_encoder.to("cuda")
-vae.to("cuda")
-unet.to("cuda")
+
+#TODO: allow this to be disabled
+#import xformers
+#unet.enable_xformers_memory_efficient_attention()
+#torch.backends.cuda.matmul.allow_tf32 = True
+
+if IS_LORA:
+    lora_layers = []
+    lora_layers_filter = filter(lambda p: p[1].requires_grad, unet.named_parameters())
+    for layer in lora_layers_filter:
+        lora_layers.append(layer[0])
+else:
+    lora_layers = None
+
+
+#https://discuss.pytorch.org/t/how-do-i-check-the-number-of-parameters-of-a-model/4325/9
+def count_parameters(model):
+        return sum(p.numel() for p in model.parameters() if p.requires_grad)
+    
+print(count_parameters(unet))
+
+print(":P")
+
+if project_config.IS_CUDA:
+    text_encoder.to("cuda")
+    vae.to("cuda")
+    unet.to("cuda")
 
 # Freeze vae and text_encoder
 vae.requires_grad_(False)
 text_encoder.requires_grad_(False)
-#unet.train()
 
 train_dataset = dataset_config.preprocess(tokenizer)
 
@@ -78,7 +110,10 @@ traker = TRAKer(model=unet,
                 save_dir=TRAK_SAVE_DIR,
                 proj_max_batch_size=8, #Default 32, requires an A100 apparently
                 proj_dim=1024,
+                grad_wrt=lora_layers
                 )
+
+print(traker.num_params_for_grad)
 
 #Scoop whatever VRAM we can because this is going to be a tight fit
 import gc
@@ -95,10 +130,15 @@ weight_dtype = torch.float32
 def updateTRAKFeatures():
     i=0
     for model_id, ckpt in enumerate(tqdm(ckpts)):
-        traker.load_checkpoint(ckpt, model_id=model_id)
+        if IS_LORA:
+            #TODO: fix the horrid local/global unet duplication going on here
+            unet = model_config.loadLoRAUnet(p,ckpt)
+            traker.load_checkpoint(unet.state_dict(),model_id=model_id)
+        else:
+            traker.load_checkpoint(ckpt, model_id=model_id)
 
         for batch in tqdm(train_dataloader):
-            if CUDA:
+            if project_config.IS_CUDA:
                 batch = [x.cuda() for y,x in batch.items()]
             else:
                 batch = [x for y,x in batch.items()]
@@ -115,10 +155,10 @@ def updateTRAKFeatures():
             # using the checkpoint loaded above.
 
             traker.featurize(batch=batch, num_samples=batch[0].shape[0])
-            if PROFILE_GPU:
+            if EARLY_EXIT:
                 i += 1
                 if i >= EARLY_EXIT:
-                    return 0
+                    return
             
 
 
@@ -138,6 +178,14 @@ if UPDATE_FEATURIZATION:
                 updateTRAKFeatures()
         
         print(prof.key_averages(group_by_input_shape=True).table(sort_by="cuda_time_total", row_limit=30))
-        prof.export_chrome_trace("trak_trace.json")
+        # Print aggregated stats
+        print(prof.key_averages(group_by_stack_n=5).table(sort_by="self_cuda_time_total", row_limit=10))
+
+        #prof.export_chrome_trace("trak_trace.json")
+
+        #If profiling outside of Pytorch use the following
+        #torch.cuda.cudart().cudaProfilerStart()
+        #updateTRAKFeatures()
+        #torch.cuda.cudart().cudaProfilerStop()
     else:
         updateTRAKFeatures()
