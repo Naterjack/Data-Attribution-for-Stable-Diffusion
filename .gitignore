@@ -158,5 +158,6 @@ ddpm-butterflies*/
 basic_*
 *.pt
 FineTuned*/
-TRAK/trak_results*/
+TRAK/*trak_results*/
+TRAK/*trace*.json
 sd1-cifar10*/
