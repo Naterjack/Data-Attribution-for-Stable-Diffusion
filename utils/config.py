@@ -143,6 +143,8 @@ class CIFAR_10_Config(Dataset_Config):
                                             }
                                         )
         
+        self.class_captions = cl.names
+        
         self.dataset = self.dataset.remove_columns(column_names=[existing_caption_column_name])
 
         self.__train_transforms = transforms.Compose(

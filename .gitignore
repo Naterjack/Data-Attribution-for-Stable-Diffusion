@@ -161,3 +161,4 @@ FineTuned*/
 TRAK/*trak_results*/
 TRAK/*trace*.json
 sd1-cifar10*/
+datasets/*
