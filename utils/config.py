@@ -113,26 +113,33 @@ class LoRA_Model_Config(Model_Config):
         
 class Dataset_Config(object):
     def __init__(self, 
-                 huggingface_slug: str
+                 huggingface_slug: str,
+                 name: str | None = None,
                  ) -> None:
         self.huggingface_slug = huggingface_slug
-        self.dataset = load_dataset(self.huggingface_slug, split="train")
+        self.dataset_name = name
+        if self.dataset_name != None:
+            self.dataset = load_dataset(self.huggingface_slug, name=self.dataset_name, split="train")
+        else:
+            self.dataset = load_dataset(self.huggingface_slug, split="train")
 
 class CIFAR_10_Config(Dataset_Config):
     def __init__(self, 
                  huggingface_slug: str = "uoft-cs/cifar10",
+                 name: str | None = None,
                  existing_image_column_name: str = "img", 
                  existing_caption_column_name: str = "label",
                  new_image_column_name: str = "image", 
                  new_caption_column_name: str = "label_txt",
                  ) -> None:
-        super().__init__(huggingface_slug)
+        super().__init__(huggingface_slug, name)
         # Dataloader
         #https://huggingface.co/datasets/
         self.image_column = new_image_column_name
         self.caption_column = new_caption_column_name
 
-        self.dataset = self.dataset.rename_column(existing_image_column_name, new_image_column_name)
+        if existing_image_column_name != new_image_column_name:
+            self.dataset = self.dataset.rename_column(existing_image_column_name, new_image_column_name)
 
         cl = self.dataset.features[existing_caption_column_name]
 
