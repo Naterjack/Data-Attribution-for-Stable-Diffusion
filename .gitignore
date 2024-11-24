@@ -162,3 +162,13 @@ TRAK/*trak_results*/
 TRAK/*trace*.json
 sd1-cifar10*/
 datasets/*
+counter_factuals/*/checkpoint*
+counter_factuals/*/feature_extractor*
+counter_factuals/*/logs*
+counter_factuals/*/safety_checker*
+counter_factuals/*/scheduler*
+counter_factuals/*/text_encoder*
+counter_factuals/*/tokenizer*
+counter_factuals/*/unet*
+counter_factuals/*/vae*
+counter_factuals/*/*.json
