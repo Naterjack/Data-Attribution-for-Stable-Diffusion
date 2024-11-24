@@ -160,6 +160,7 @@ basic_*
 FineTuned*/
 TRAK/*trak_results*/
 TRAK/*trace*.json
+TRAK/ncu_dump/*
 sd1-cifar10*/
 datasets/*
 counter_factuals/*/checkpoint*
@@ -172,3 +173,5 @@ counter_factuals/*/tokenizer*
 counter_factuals/*/unet*
 counter_factuals/*/vae*
 counter_factuals/*/*.json
+testingGround.ipynb
+notes.txt
