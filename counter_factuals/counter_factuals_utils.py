@@ -121,11 +121,11 @@ class Counter_Factual_Image_Generator(object):
 
         if self.IS_LORA:
             #TODO: check this
-            p = p + f + "pytorch_lora_weights.safetensors"
+            lora_weights_filepath = p + f + "pytorch_lora_weights.safetensors"
             pipe = DiffusionPipeline.from_pretrained("stable-diffusion-v1-5/stable-diffusion-v1-5", torch_dtype=torch.float16)
             if self.project_config.IS_CUDA:
                 pipe.to("cuda")
-            pipe.load_lora_weights(p)
+            pipe.load_lora_weights(lora_weights_filepath)
         else:
             pipe = DiffusionPipeline.from_pretrained(p)
             if self.project_config.IS_CUDA:
