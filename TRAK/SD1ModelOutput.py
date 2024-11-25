@@ -9,28 +9,50 @@ from typing import Iterable
 
 import trak.modelout_functions
 
-MODEL_DIR = "sd1-cifar10-v2"
-IS_WINDOWS = False
 import os
 from pathlib import Path
 
 
+# AFAICT the only way to fix this is to make the whole project a module
+#   Which is already annoying in theory and worse in this case since you cant have hypens in module names
+import sys
+import os
+PARENT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(PARENT_DIR)
+from utils.config import Project_Config
+
 class SD1ModelOutput(trak.modelout_functions.AbstractModelOutput):
-
-    if IS_WINDOWS: 
-        folder_symbol = "\\" 
-    else: #Assume UNIX-based
-        folder_symbol = "/"
-
-    pwd = str(Path(__file__).resolve().parent.parent)
-    p = pwd + folder_symbol + MODEL_DIR + folder_symbol
-    assert(os.path.isdir(p))
     
-    noise_scheduler = DDPMScheduler.from_pretrained(p, subfolder="scheduler")
+    noise_scheduler = None
+    loss_fn = None
 
+    @staticmethod
+    def TRAK_loss(target: torch.Tensor,
+                   generated: torch.Tensor):
+        return F.mse_loss(target, generated)
+    
+    @staticmethod
+    def DTRAK_loss(target: torch.Tensor,
+                   generated: torch.Tensor):
+        return F.mse_loss(torch.zeros_like(target), generated)
 
-    def __init__(self) -> None:
-        super.__init__()
+    def __init__(self,
+                 project_config: Project_Config,
+                 loss_fn_name: str = "TRAK",
+                 BASE_MODEL_DIR: str = "sd1-cifar10-v2") -> None:
+        #Note that this is the BASE model, not the LoRA fine tuned version, since the LoRA
+        #   version doesn't include the noise scheduler
+        #super.__init__(self)
+        self.project_config = project_config
+        f = project_config.folder_symbol
+        p = project_config.PWD + f + BASE_MODEL_DIR + f
+        assert(os.path.isdir(p))
+        SD1ModelOutput.noise_scheduler = DDPMScheduler.from_pretrained(p, subfolder="scheduler")
+
+        if loss_fn_name == "DTRAK":
+            SD1ModelOutput.loss_fn = SD1ModelOutput.DTRAK_loss
+        else:
+            SD1ModelOutput.loss_fn = SD1ModelOutput.TRAK_loss
 
     @staticmethod
     def get_output(model: torch.nn.Module,
@@ -68,8 +90,18 @@ class SD1ModelOutput(trak.modelout_functions.AbstractModelOutput):
         # Predict the noise residual and compute loss
         model_pred = torch.func.functional_call(unet, (weights, buffers), (noisy_latents, timesteps, encoder_hidden_states), {"return_dict":False})
         target = target.unsqueeze(0)
-        loss = F.mse_loss(target[0], model_pred[0])
+
+        loss = SD1ModelOutput.loss_fn(target[0], model_pred[0])
+        #
+        #TRAK
+        #
+        #loss = F.mse_loss(target[0], model_pred[0])
+
+        #
+        #DTRAK
+        #
+        #loss = F.mse_loss(torch.zeros_like(target[0]), model_pred[0])
         return loss
 
-    def get_out_to_loss_grad(model, weights, buffers, batch: Iterable[Tensor]) -> Tensor:
+    def get_out_to_loss_grad(self, model, weights, buffers, batch: Iterable[Tensor]) -> Tensor:
         return torch.eye(1)

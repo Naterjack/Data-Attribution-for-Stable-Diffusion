@@ -5,18 +5,18 @@
 #
 
 import torch
-from trak import TRAKer
+from trak import TRAKer, projectors
 from SD1ModelOutput import SD1ModelOutput
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from TRAK.TRAK_utils import TRAK_Config, TRAK_Type_Enum
 
 ####CONFIG####
-CONVERT_SAFETENSORS_TO_CKPT = False
 UPDATE_FEATURIZATION = True
 PROFILE_GPU = False
 EARLY_EXIT = 0
-TRAK_SAVE_DIR = "trak_results_lora"
-IS_LORA = True
+IS_LoRA = True
+IS_DTRAK = False
 
 
 #Python actually high key stinks
@@ -34,65 +34,22 @@ project_config = Project_Config(
     IS_WINDOWS = False,
 )
 
-if IS_LORA:
-    model_config = LoRA_Model_Config(
-        PROJECT_CONFIG=project_config,
-        MODEL_DIR="sd1-cifar10-v2-lora",
-        NUM_CHECKPOINTS=10,
-        ITERATIONS_PER_CHECKPOINT=10000,
-    )
-else:
-    model_config = Model_Config(
-        PROJECT_CONFIG=project_config,
-        MODEL_DIR="sd1-cifar10-v2",
-        NUM_CHECKPOINTS=10,
-        ITERATIONS_PER_CHECKPOINT=10000,
-    )
+trak_config = TRAK_Config(
+    project_config=project_config,
+    IS_LoRA=IS_LoRA,
+    TRAK_type=(TRAK_Type_Enum.DTRAK if IS_DTRAK else TRAK_Type_Enum.TRAK),
+
+)
 
 dataset_config = CIFAR_10_Config(new_image_column_name="image",
                                  new_caption_column_name="label_txt")
-
-p = model_config.getModelDirectory()
-
-if IS_LORA:
-    tokenizer, text_encoder, vae, _ = model_config.loadModelComponents("stable-diffusion-v1-5/stable-diffusion-v1-5")
-    unet = model_config.loadLoRAUnet(p,0)
-    ckpts = range(model_config.NUM_CHECKPOINTS)
-else:
-    ckpts = model_config.loadCheckpoints(p, CONVERT_SAFETENSORS_TO_CKPT)
-    tokenizer, text_encoder, vae, unet = model_config.loadModelComponents(p)
-
 
 #TODO: allow this to be disabled
 #import xformers
 #unet.enable_xformers_memory_efficient_attention()
 #torch.backends.cuda.matmul.allow_tf32 = True
 
-if IS_LORA:
-    lora_layers = []
-    lora_layers_filter = filter(lambda p: p[1].requires_grad, unet.named_parameters())
-    for layer in lora_layers_filter:
-        lora_layers.append(layer[0])
-else:
-    lora_layers = None
-
-
-#https://discuss.pytorch.org/t/how-do-i-check-the-number-of-parameters-of-a-model/4325/9
-def count_parameters(model):
-        return sum(p.numel() for p in model.parameters() if p.requires_grad)
-    
-print(count_parameters(unet))
-
-print(":P")
-
-if project_config.IS_CUDA:
-    text_encoder.to("cuda")
-    vae.to("cuda")
-    unet.to("cuda")
-
-# Freeze vae and text_encoder
-vae.requires_grad_(False)
-text_encoder.requires_grad_(False)
+traker, tokenizer, text_encoder, vae, unet, ckpts = trak_config.load_TRAKer(len(dataset_config.dataset))
 
 train_dataset = dataset_config.preprocess(tokenizer)
 
@@ -103,15 +60,6 @@ train_dataloader = DataLoader(
     collate_fn=dataset_config.collate_fn,
     batch_size=1,
 )
-
-traker = TRAKer(model=unet,
-                task=SD1ModelOutput,
-                train_set_size=len(train_dataloader.dataset),
-                save_dir=TRAK_SAVE_DIR,
-                proj_max_batch_size=8, #Default 32, requires an A100 apparently
-                proj_dim=1024,
-                grad_wrt=lora_layers
-                )
 
 print(traker.num_params_for_grad)
 
@@ -130,9 +78,10 @@ weight_dtype = torch.float32
 def updateTRAKFeatures():
     i=0
     for model_id, ckpt in enumerate(tqdm(ckpts)):
-        if IS_LORA:
+        if trak_config.IS_LoRA:
+            p = trak_config.model_config.getModelDirectory()
             #TODO: fix the horrid local/global unet duplication going on here
-            unet = model_config.loadLoRAUnet(p,ckpt)
+            unet = trak_config.model_config.loadLoRAUnet(p,ckpt)
             traker.load_checkpoint(unet.state_dict(),model_id=model_id)
         else:
             traker.load_checkpoint(ckpt, model_id=model_id)
@@ -160,8 +109,6 @@ def updateTRAKFeatures():
                 if i >= EARLY_EXIT:
                     return
             
-
-
         # Tells TRAKer that we've given it all the information, at which point
 
         # TRAKer does some post-processing to get ready for the next step

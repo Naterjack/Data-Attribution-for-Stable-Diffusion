@@ -158,6 +158,8 @@ ddpm-butterflies*/
 basic_*
 *.pt
 FineTuned*/
+TRAK/results/*
+TRAK/old_results/*
 TRAK/*trak_results*/
 TRAK/*trace*.json
 TRAK/ncu_dump/*
@@ -173,5 +175,7 @@ counter_factuals/*/tokenizer*
 counter_factuals/*/unet*
 counter_factuals/*/vae*
 counter_factuals/*/*.json
+counter_factuals/*/*.safetensors
 testingGround.ipynb
 notes.txt
+old_models/*
