@@ -47,23 +47,24 @@ class Model_Config(object):
         return p
     
     def loadCheckpoints(self, 
-                        p: str, 
-                        CONVERT_SAFETENSORS_TO_CKPT: bool,
+                        p: str,
                         checkpoint_file_name: str = "diffusion_pytorch_model",
                         checkpoint_subfolder: str = "unet") -> Iterable[torch.Tensor]:
         ckpt_files = []
         #s/o https://gist.github.com/madaan/6c9be9613e6760b7dee79bdfa621fc0f
         for i in range(1, self.NUM_CHECKPOINTS+1):
-            filename = (
+            base_filename = (
                         p + 
                         "checkpoint-" + str(i*self.ITERATIONS_PER_CHECKPOINT) + self.PROJECT_CONFIG.folder_symbol + 
                         checkpoint_subfolder + self.PROJECT_CONFIG.folder_symbol 
-                        + checkpoint_file_name + ".bin"
+                        + checkpoint_file_name
                         )
-            if CONVERT_SAFETENSORS_TO_CKPT:
-                ckpt_safetensors = load_file(filename.replace(".bin", ".safetensors"))
-                torch.save(ckpt_safetensors, filename)
-            ckpt_files.append(filename)
+            bin_filename = base_filename + ".bin"
+            safetensors_filename = base_filename +  ".safetensors"
+            if Path(safetensors_filename).is_file() and not(Path(bin_filename).is_file()):
+                ckpt_safetensors = load_file(safetensors_filename)
+                torch.save(ckpt_safetensors, bin_filename)
+            ckpt_files.append(bin_filename)
             #ckpt = torch.load(ckpt_filename)
         
         ckpts = [torch.load(ckpt, map_location='cpu') for ckpt in ckpt_files]
@@ -196,8 +197,6 @@ class CIFAR_10_Config(Dataset_Config):
         pixel_values = pixel_values.to(memory_format=torch.contiguous_format).float()
         input_ids = torch.stack([example["input_ids"] for example in examples])
         return {"pixel_values": pixel_values, "input_ids": input_ids}
-
-
 
 if __name__ == "__main__":
     c10 = CIFAR_10_Config()
