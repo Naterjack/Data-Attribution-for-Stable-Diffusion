@@ -2,12 +2,13 @@ from pathlib import Path
 from os.path import isdir
 from safetensors.torch import load_file
 import torch
-from typing import Iterable
+from typing import Iterable, List
 from transformers import CLIPTokenizer, CLIPTextModel
 from diffusers import AutoencoderKL, UNet2DConditionModel
 from datasets import load_dataset, Dataset
 from torchvision import transforms
 from torch.utils.data import DataLoader
+from utils.custom_enums import Model_Type_Enum, Dataset_Type_Enum, validate_enum
 
 class Project_Config(object):
     def __init__(self,
@@ -29,21 +30,27 @@ class Project_Config(object):
 
 class Model_Config(object):
     def __init__(self, 
-                 PROJECT_CONFIG: Project_Config, 
-                 MODEL_DIR: str,
+                 project_config: Project_Config, 
+                 MODEL_TYPE: Model_Type_Enum,
+                 DATASET_TYPE: Dataset_Type_Enum,
                  NUM_CHECKPOINTS: int = 1,
                  ITERATIONS_PER_CHECKPOINT: int = 10000) -> None:
-        self.PROJECT_CONFIG = PROJECT_CONFIG
-        self.MODEL_DIR = MODEL_DIR
+        self.project_config = project_config
+        self.MODEL_TYPE = validate_enum(MODEL_TYPE, Model_Type_Enum)
+        self.DATASET_TYPE = validate_enum(DATASET_TYPE, Dataset_Type_Enum)
         self.NUM_CHECKPOINTS = NUM_CHECKPOINTS
         self.ITERATIONS_PER_CHECKPOINT = ITERATIONS_PER_CHECKPOINT
 
     def getModelDirectory(self):
-        p = (self.PROJECT_CONFIG.PWD 
-             + self.PROJECT_CONFIG.folder_symbol 
-             + self.MODEL_DIR 
-             + self.PROJECT_CONFIG.folder_symbol)
-        assert(isdir(p))
+        f = self.project_config.folder_symbol
+        p = (self.project_config.PWD +  f
+             + "models" + f
+             + self.DATASET_TYPE + f
+             + "sd1-" + self.MODEL_TYPE + f)
+        try:
+            assert(isdir(p))
+        except:
+            raise Exception(f"Model directory {p} was not found!")
         return p
     
     def loadCheckpoints(self, 
@@ -55,8 +62,8 @@ class Model_Config(object):
         for i in range(1, self.NUM_CHECKPOINTS+1):
             base_filename = (
                         p + 
-                        "checkpoint-" + str(i*self.ITERATIONS_PER_CHECKPOINT) + self.PROJECT_CONFIG.folder_symbol + 
-                        checkpoint_subfolder + self.PROJECT_CONFIG.folder_symbol 
+                        "checkpoint-" + str(i*self.ITERATIONS_PER_CHECKPOINT) + self.project_config.folder_symbol + 
+                        checkpoint_subfolder + self.project_config.folder_symbol 
                         + checkpoint_file_name
                         )
             bin_filename = base_filename + ".bin"
@@ -106,7 +113,7 @@ class LoRA_Model_Config(Model_Config):
         lora_file = (
                     p + 
                     "checkpoint-" + str((checkpoint_index+1)*self.ITERATIONS_PER_CHECKPOINT) +
-                    self.PROJECT_CONFIG.folder_symbol +
+                    self.project.folder_symbol +
                     checkpoint_file_name
                     )
         unet.load_attn_procs(lora_file)
@@ -115,25 +122,25 @@ class LoRA_Model_Config(Model_Config):
 class Dataset_Config(object):
     def __init__(self, 
                  huggingface_slug: str,
-                 name: str | None = None,
+                 config_name: str | None = None,
                  ) -> None:
         self.huggingface_slug = huggingface_slug
-        self.dataset_name = name
-        if self.dataset_name != None:
-            self.dataset = load_dataset(self.huggingface_slug, name=self.dataset_name, split="train")
+        self.dataset_config_name = config_name
+        if self.dataset_config_name is not None:
+            self.dataset = load_dataset(self.huggingface_slug, name=self.dataset_config_name, split="train")
         else:
             self.dataset = load_dataset(self.huggingface_slug, split="train")
 
 class CIFAR_10_Config(Dataset_Config):
     def __init__(self, 
                  huggingface_slug: str = "uoft-cs/cifar10",
-                 name: str | None = None,
+                 config_name: str | None = None,
                  existing_image_column_name: str = "img", 
                  existing_caption_column_name: str = "label",
                  new_image_column_name: str = "image", 
                  new_caption_column_name: str = "label_txt",
                  ) -> None:
-        super().__init__(huggingface_slug, name)
+        super().__init__(huggingface_slug, config_name)
         # Dataloader
         #https://huggingface.co/datasets/
         self.image_column = new_image_column_name
@@ -197,6 +204,25 @@ class CIFAR_10_Config(Dataset_Config):
         pixel_values = pixel_values.to(memory_format=torch.contiguous_format).float()
         input_ids = torch.stack([example["input_ids"] for example in examples])
         return {"pixel_values": pixel_values, "input_ids": input_ids}
+
+class CIFAR_10_Local_Config(CIFAR_10_Config):
+    def __init__(self,
+                 project_config: Project_Config,
+                 dataset_type: Dataset_Type_Enum,
+                 #huggingface_slug: str = "uoft-cs/cifar10", 
+                 config_name: str | None = None, 
+                 existing_image_column_name: str = "image", 
+                 existing_caption_column_name: str = "label", 
+                 new_image_column_name: str = "image", 
+                 new_caption_column_name: str = "label_txt") -> None:
+        dataset_type = validate_enum(dataset_type, Dataset_Type_Enum)
+        f =  project_config.folder_symbol
+        super().__init__(f"{project_config.PWD}{f}datasets{f}{dataset_type}", 
+                         config_name, 
+                         existing_image_column_name, 
+                         existing_caption_column_name, 
+                         new_image_column_name, 
+                         new_caption_column_name)
 
 if __name__ == "__main__":
     c10 = CIFAR_10_Config()

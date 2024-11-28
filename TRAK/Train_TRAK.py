@@ -9,14 +9,18 @@ from trak import TRAKer, projectors
 from SD1ModelOutput import SD1ModelOutput
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from TRAK.TRAK_utils import TRAK_Config, TRAK_Type_Enum
+from TRAK.TRAK_utils import TRAK_Config
+from utils.custom_enums import TRAK_Type_Enum, Dataset_Type_Enum, Model_Type_Enum
 
 ####CONFIG####
 UPDATE_FEATURIZATION = True
+DATASET_TYPE = Dataset_Type_Enum.CIFAR2
+MODEL_TYPE = Model_Type_Enum.FULL
+TRAK_TYPE = TRAK_Type_Enum.TRAK
+
+###GPU PROFILING###
 PROFILE_GPU = False
 EARLY_EXIT = 0
-IS_LoRA = True
-IS_DTRAK = False
 
 
 #Python actually high key stinks
@@ -27,7 +31,7 @@ import os
 PARENT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(PARENT_DIR)
 
-from utils.config import Project_Config, Model_Config, CIFAR_10_Config, LoRA_Model_Config
+from utils.config import Project_Config, CIFAR_10_Config, CIFAR_10_Local_Config
 
 project_config = Project_Config(
     IS_CUDA = True,
@@ -36,13 +40,18 @@ project_config = Project_Config(
 
 trak_config = TRAK_Config(
     project_config=project_config,
-    IS_LoRA=IS_LoRA,
-    TRAK_type=(TRAK_Type_Enum.DTRAK if IS_DTRAK else TRAK_Type_Enum.TRAK),
-
+    model_type=MODEL_TYPE,
+    TRAK_type=TRAK_TYPE,
+    dataset_type=DATASET_TYPE,
 )
 
-dataset_config = CIFAR_10_Config(new_image_column_name="image",
-                                 new_caption_column_name="label_txt")
+if DATASET_TYPE == Dataset_Type_Enum.CIFAR10:
+    dataset_config = CIFAR_10_Config()
+if DATASET_TYPE == Dataset_Type_Enum.CIFAR2:
+    dataset_config = CIFAR_10_Local_Config(
+        project_config=project_config,
+        dataset_type=DATASET_TYPE,
+    )
 
 #TODO: allow this to be disabled
 #import xformers
@@ -78,7 +87,7 @@ weight_dtype = torch.float32
 def updateTRAKFeatures():
     i=0
     for model_id, ckpt in enumerate(tqdm(ckpts)):
-        if trak_config.IS_LoRA:
+        if trak_config.model_type == Model_Type_Enum.LORA:
             p = trak_config.model_config.getModelDirectory()
             #TODO: fix the horrid local/global unet duplication going on here
             unet = trak_config.model_config.loadLoRAUnet(p,ckpt)

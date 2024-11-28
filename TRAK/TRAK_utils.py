@@ -12,57 +12,52 @@ PARENT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(PARENT_DIR)
 
 from utils.config import Project_Config, LoRA_Model_Config, Model_Config
+from utils.custom_enums import TRAK_Type_Enum, Dataset_Type_Enum, Model_Type_Enum, validate_enum
 from trak import TRAKer, projectors
 from TRAK.SD1ModelOutput import SD1ModelOutput
-
-from enum import Enum
-class TRAK_Type_Enum(str, Enum):
-    TRAK: str = "TRAK"
-    DTRAK: str = "DTRAK"
 
 class TRAK_Config(object):
     def __init__(self,
                  project_config: Project_Config,
-                 IS_LoRA: bool,
+                 model_type: Model_Type_Enum,
                  TRAK_type: TRAK_Type_Enum,
+                 dataset_type: Dataset_Type_Enum,
                  ) -> None:
         self.project_config = project_config
-        self.IS_LoRA = IS_LoRA
-        
-        #https://softwareengineering.stackexchange.com/a/409986
-        try:
-            self.TRAK_type = TRAK_Type_Enum(TRAK_type)
-        except ValueError:
-            # more informative error message
-            raise ValueError(f"'{TRAK_type} is not a valid TRAK_type; possible types: {list(TRAK_Type_Enum)}")
+        self.dataset_type = validate_enum(dataset_type, Dataset_Type_Enum)
+        self.TRAK_type = validate_enum(TRAK_type, TRAK_Type_Enum)
+        self.model_type = validate_enum(model_type, Model_Type_Enum)
 
-        if IS_LoRA:
-            self.MODEL_NAME_CLEAN = "SD1_LoRA"
+        self.MODEL_NAME_CLEAN = f"SD1_{model_type}"
+        #model_dir = f"sd1-{model_type}-{dataset_type}"
+
+        if dataset_type == Dataset_Type_Enum.CIFAR10:
+            iterations_per_checkpoint=10000
+        if dataset_type == Dataset_Type_Enum.CIFAR2:
+            iterations_per_checkpoint=1000
+
+        if model_type == Model_Type_Enum.LORA:
             self.model_config = LoRA_Model_Config(
-                PROJECT_CONFIG=project_config,
-                MODEL_DIR="sd1-cifar10-v2-lora",
+                project_config=project_config,
+                MODEL_TYPE=model_type,
+                DATASET_TYPE=dataset_type,
                 NUM_CHECKPOINTS=10,
-                ITERATIONS_PER_CHECKPOINT=10000,
+                ITERATIONS_PER_CHECKPOINT=iterations_per_checkpoint,
             )
         else:
-            self.MODEL_NAME_CLEAN = "SD1_Full"
             self.model_config = Model_Config(
-                PROJECT_CONFIG=project_config,
-                MODEL_DIR="sd1-cifar10-v2",
+                project_config=project_config,
+                MODEL_TYPE=model_type,
+                DATASET_TYPE=dataset_type,
                 NUM_CHECKPOINTS=10,
-                ITERATIONS_PER_CHECKPOINT=10000,
+                ITERATIONS_PER_CHECKPOINT=iterations_per_checkpoint,
             )
         
         f = project_config.folder_symbol
-        self.TRAK_SAVE_DIR = f"TRAK{f}results{f}{self.TRAK_type}_{self.MODEL_NAME_CLEAN}"
+        self.TRAK_SAVE_DIR = f"{project_config.PWD}{f}TRAK{f}results{f}{self.dataset_type}{f}{self.TRAK_type}_{self.MODEL_NAME_CLEAN}"
+        #TODO This doesnt do what I want it to
         makedirs(self.TRAK_SAVE_DIR, exist_ok=True)
         print(f"TRAK is being saved to {self.TRAK_SAVE_DIR}")
-
-        #TODO this is redudant
-        if self.TRAK_type==TRAK_Type_Enum.DTRAK:
-            self.loss_fn_name = "DTRAK"
-        else: #TRAK
-            self.loss_fn_name = "TRAK"
 
     #https://discuss.pytorch.org/t/how-do-i-check-the-number-of-parameters-of-a-model/4325/9
     def __count_parameters(self, model):
@@ -70,7 +65,7 @@ class TRAK_Config(object):
 
     def load_checkpoints(self):
         p = self.model_config.getModelDirectory()
-        if self.IS_LoRA:
+        if self.model_type == Model_Type_Enum.LORA:
             tokenizer, text_encoder, vae, _ = self.model_config.loadModelComponents("stable-diffusion-v1-5/stable-diffusion-v1-5")
             unet = self.model_config.loadLoRAUnet(p,0)
             ckpts = range(self.model_config.NUM_CHECKPOINTS)
@@ -85,7 +80,7 @@ class TRAK_Config(object):
                     train_set_size):
         num_params = self.__count_parameters(model)
         print(f"Model contains {num_params} trainable parameters")
-        if self.IS_LoRA:
+        if self.model_type == Model_Type_Enum.LORA:
             lora_layers = []
             lora_layers_filter = filter(lambda p: p[1].requires_grad, model.named_parameters())
             for layer in lora_layers_filter:
@@ -105,10 +100,12 @@ class TRAK_Config(object):
             lora_layers = None
             projector = None
 
-        model_output = SD1ModelOutput(project_config=self.project_config,
-                                        loss_fn_name=self.loss_fn_name,)
-                                        #MODEL_DIR=self.model_config.MODEL_DIR) #Leave this hardcoded since
-                                        #   its the same in all instances
+        model_output = SD1ModelOutput(
+            project_config=self.project_config,
+            TRAK_type=self.TRAK_type
+        )
+        #MODEL_DIR=self.model_config.MODEL_DIR) #Leave this hardcoded since
+        #   its the same in all instances
         
         traker = TRAKer(model=model,
                         task=model_output,
@@ -138,21 +135,22 @@ class TRAK_Config(object):
 
 class TRAK_Experiment_Config(TRAK_Config):
     def __init__(self, 
-                 project_config: Project_Config, 
-                 IS_LoRA: bool,
+                 project_config: Project_Config,
+                 model_type: Model_Type_Enum,
                  TRAK_type: TRAK_Type_Enum,
+                 dataset_type: Dataset_Type_Enum,
                  FORCE_FULL_MODEL_TEST_DATASET: bool
                  ) -> None:
         #FORCE_FULL_MODEL_TEST_DATASET allows for taking a TRAKer instance that 
         # has been featurized on on a LoRA model, and getting scoring it on
         # a "full" model.
-        super().__init__(project_config, IS_LoRA, TRAK_type)
+        super().__init__(project_config, model_type, TRAK_type, dataset_type)
         self.FORCE_FULL_MODEL_TEST_DATASET = FORCE_FULL_MODEL_TEST_DATASET
 
-        if self.FORCE_FULL_MODEL_TEST_DATASET and not(self.IS_LoRA):
+        if self.FORCE_FULL_MODEL_TEST_DATASET and (self.model_type == Model_Type_Enum.FULL):
             raise ValueError("Cannot override the test dataset for a Non-LoRA model")
         
-        if self.IS_LoRA:
+        if self.model_type == Model_Type_Enum.LORA:
             if FORCE_FULL_MODEL_TEST_DATASET:
                 EXPERIMENT_SUBTITLE = "_full_model_test_dataset"
             else:
@@ -160,7 +158,7 @@ class TRAK_Experiment_Config(TRAK_Config):
                 
         self.EXPERIMENT_NAME = self.MODEL_NAME_CLEAN+EXPERIMENT_SUBTITLE
         
-        if TRAK_type==TRAK_Type_Enum.TRAK and not(self.IS_LoRA):
+        if TRAK_type==TRAK_Type_Enum.TRAK and (self.model_type == Model_Type_Enum.FULL):
             #if UPDATE_SCORES:
             print("Warning, this particular combination is expensive to compute.")
             print("On our 3090 system, this requires 23.95GB of VRAM (97%), and takes 25 min to compute scores")

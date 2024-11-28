@@ -20,6 +20,7 @@ import os
 PARENT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(PARENT_DIR)
 from utils.config import Project_Config
+from utils.custom_enums import TRAK_Type_Enum, validate_enum
 
 class SD1ModelOutput(trak.modelout_functions.AbstractModelOutput):
     
@@ -38,18 +39,19 @@ class SD1ModelOutput(trak.modelout_functions.AbstractModelOutput):
 
     def __init__(self,
                  project_config: Project_Config,
-                 loss_fn_name: str = "TRAK",
+                 TRAK_type: TRAK_Type_Enum = TRAK_Type_Enum.TRAK,
                  BASE_MODEL_DIR: str = "sd1-cifar10-v2") -> None:
         #Note that this is the BASE model, not the LoRA fine tuned version, since the LoRA
         #   version doesn't include the noise scheduler
         #super.__init__(self)
+        self.TRAK_type = validate_enum(TRAK_type, TRAK_Type_Enum)
         self.project_config = project_config
         f = project_config.folder_symbol
         p = project_config.PWD + f + BASE_MODEL_DIR + f
         assert(os.path.isdir(p))
         SD1ModelOutput.noise_scheduler = DDPMScheduler.from_pretrained(p, subfolder="scheduler")
 
-        if loss_fn_name == "DTRAK":
+        if TRAK_type == TRAK_Type_Enum.DTRAK:
             SD1ModelOutput.loss_fn = SD1ModelOutput.DTRAK_loss
         else:
             SD1ModelOutput.loss_fn = SD1ModelOutput.TRAK_loss
