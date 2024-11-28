@@ -152,30 +152,25 @@ cython_debug/
 #.idea/
 
 
-# Repo specific
-ddpm-butterflies*/
-*.png
-basic_*
-*.pt
-FineTuned*/
-TRAK/results/*
+# Repo specific , will be generated under ordinary use
+*.tfevents.*
+datasets/*.png
+DINO/*.pt
+LDS/*/
+
+# Repo specific, stuff from my specific system that is not relevant 
 TRAK/old_results/*
-TRAK/*trak_results*/
-TRAK/*trace*.json
-TRAK/ncu_dump/*
-sd1-cifar10*/
-datasets/*
-counter_factuals/*/checkpoint*
-counter_factuals/*/feature_extractor*
-counter_factuals/*/logs*
-counter_factuals/*/safety_checker*
-counter_factuals/*/scheduler*
-counter_factuals/*/text_encoder*
-counter_factuals/*/tokenizer*
-counter_factuals/*/unet*
-counter_factuals/*/vae*
-counter_factuals/*/*.json
-counter_factuals/*/*.safetensors
+old_models/*
+*/logs
 testingGround.ipynb
 notes.txt
 old_models/*
+
+
+# Filter out results data for now such that git doesn't immediately explode
+TRAK/results/*
+models/*
+datasets/*
+TRAK/ncu_dump/*
+TRAK/*trace*.json
+counter_factuals/*/*
