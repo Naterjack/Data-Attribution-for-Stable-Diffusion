@@ -28,7 +28,7 @@ class TRAK_Config(object):
         self.TRAK_type = validate_enum(TRAK_type, TRAK_Type_Enum)
         self.model_type = validate_enum(model_type, Model_Type_Enum)
 
-        self.MODEL_NAME_CLEAN = f"SD1_{model_type}"
+        self.MODEL_NAME_CLEAN = f"sd1-{model_type}"
         #model_dir = f"sd1-{model_type}-{dataset_type}"
 
         if dataset_type == Dataset_Type_Enum.CIFAR10:
@@ -165,8 +165,7 @@ class TRAK_Experiment_Config(TRAK_Config):
     
     def load_scores(self):
         f = self.project_config.folder_symbol
-        memmap_path = (self.project_config.PWD + 
-                    f + 
+        memmap_path = ( 
                     self.TRAK_SAVE_DIR + 
                     f +
                     "scores" +

@@ -40,14 +40,22 @@ class SD1ModelOutput(trak.modelout_functions.AbstractModelOutput):
     def __init__(self,
                  project_config: Project_Config,
                  TRAK_type: TRAK_Type_Enum = TRAK_Type_Enum.TRAK,
-                 BASE_MODEL_DIR: str = "sd1-cifar10-v2") -> None:
+                 BASE_MODEL_DIR: str | None = None) -> None:
         #Note that this is the BASE model, not the LoRA fine tuned version, since the LoRA
         #   version doesn't include the noise scheduler
         #super.__init__(self)
         self.TRAK_type = validate_enum(TRAK_type, TRAK_Type_Enum)
         self.project_config = project_config
         f = project_config.folder_symbol
-        p = project_config.PWD + f + BASE_MODEL_DIR + f
+        if BASE_MODEL_DIR is not None:
+            p = BASE_MODEL_DIR
+        else:
+            p = (
+                project_config.PWD + f + 
+                "models" + f +
+                "cifar10" + f +
+                "sd1-full" + f
+            )
         assert(os.path.isdir(p))
         SD1ModelOutput.noise_scheduler = DDPMScheduler.from_pretrained(p, subfolder="scheduler")
 

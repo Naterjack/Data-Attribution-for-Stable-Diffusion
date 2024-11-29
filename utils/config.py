@@ -113,7 +113,7 @@ class LoRA_Model_Config(Model_Config):
         lora_file = (
                     p + 
                     "checkpoint-" + str((checkpoint_index+1)*self.ITERATIONS_PER_CHECKPOINT) +
-                    self.project.folder_symbol +
+                    self.project_config.folder_symbol +
                     checkpoint_file_name
                     )
         unet.load_attn_procs(lora_file)
@@ -162,7 +162,7 @@ class CIFAR_10_Config(Dataset_Config):
         
         self.dataset = self.dataset.remove_columns(column_names=[existing_caption_column_name])
 
-        self.__train_transforms = transforms.Compose(
+        self.train_transforms = transforms.Compose(
             [
                 transforms.ToTensor(),
                 transforms.Normalize([0.5], [0.5]),
@@ -187,7 +187,7 @@ class CIFAR_10_Config(Dataset_Config):
     #TODO: Convert this to private
     def preprocess_train(self, examples):
         images = [image.convert("RGB") for image in examples[self.image_column]]
-        examples["pixel_values"] = [self.__train_transforms(image) for image in images]
+        examples["pixel_values"] = [self.train_transforms(image) for image in images]
         examples["input_ids"] = self.__tokenize_captions(examples)
         return examples
 
@@ -210,7 +210,7 @@ class CIFAR_10_Local_Config(CIFAR_10_Config):
                  project_config: Project_Config,
                  dataset_type: Dataset_Type_Enum,
                  #huggingface_slug: str = "uoft-cs/cifar10", 
-                 config_name: str | None = None, 
+                 config_name: str | None = 'full',
                  existing_image_column_name: str = "image", 
                  existing_caption_column_name: str = "label", 
                  new_image_column_name: str = "image", 
