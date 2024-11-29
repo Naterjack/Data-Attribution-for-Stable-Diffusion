@@ -59,6 +59,8 @@ class Dataset_Generator(object):
             number_items_to_keep_per_class: int = 0,
     ):
         
+        f = self.project_config.folder_symbol
+
         if class_names_to_keep is not None:
             #Check all provided classes are valid
             for class_name in class_names_to_keep:
@@ -76,7 +78,7 @@ class Dataset_Generator(object):
         Path(self.base_path_images).mkdir(parents=True, exist_ok=True)
 
         for class_caption in self.dataset_config.class_captions:
-            Path(self.base_path_images+class_caption+self.project_config.folder_symbol).mkdir(parents=True, exist_ok=True)
+            Path(self.base_path_images+class_caption+f).mkdir(parents=True, exist_ok=True)
 
 
         file_lines = []
@@ -98,8 +100,8 @@ class Dataset_Generator(object):
             if current_caption in self.dataset_config.class_captions:
                 if number_items_per_class_tally[current_caption] < number_items_to_keep_per_class:
                     number_items_per_class_tally[current_caption] += 1
-                    item[self.dataset_config.image_column].save(f"{self.base_path_images}{item[self.dataset_config.caption_column]}{self.project_config.folder_symbol}{i}.png")
-                    file_lines.append(f"          - \"train{self.project_config.folder_symbol}{item[self.dataset_config.caption_column]}{self.project_config.folder_symbol}{i}.png\"")
+                    item[self.dataset_config.image_column].save(f"{self.base_path_images}{item[self.dataset_config.caption_column]}{f}{i}.png")
+                    file_lines.append(f"          - \"train{f}{item[self.dataset_config.caption_column]}{f}{i}.png\"")
 
 
         file_lines.append("---")
@@ -116,14 +118,26 @@ class Dataset_Generator(object):
             self,
             config_name:str, 
             indicies_to_remove:List[int]
-    ):
+    ) -> bool:
+        
+        f = self.project_config.folder_symbol
         indicies_to_remove.sort()
         current_index_to_remove = indicies_to_remove.pop(0)
 
         #Read the entire file so far
-        f = open(self.base_path+"README.md", "r")
-        file_lines = f.readlines()
-        f.close()
+        file = open(self.base_path+"README.md", "r")
+        file_lines = file.readlines()
+        file.close()
+
+        #Make sure that the config hasn't already been generated, 
+        # as the code after this loop is potentially destructive in that case
+        for line in file_lines:
+            if len(line) > 2:
+                if line[2] == '-':
+                    if config_name in line:
+                        print(f"Config {config_name} already exists!")
+                        return False
+
 
         #Delete last line ("---")
         file_lines.pop()
@@ -139,11 +153,12 @@ class Dataset_Generator(object):
                 if len(indicies_to_remove) > 0: 
                     current_index_to_remove = indicies_to_remove.pop(0)
             else:
-                file_lines.append(f"          - \"train{self.project_config.folder_symbol}{item[self.dataset_config.caption_column]}{self.project_config.folder_symbol}{i}.png\"\n")
+                file_lines.append(f"          - \"train{f}{item[self.dataset_config.caption_column]}{f}{i}.png\"\n")
         file_lines.append("---\n")
 
         #Write the file, overwriting the whole thing
         # We do this rather than appending since we need to remove the last line
-        f = open(self.base_path+"README.md", "w")
-        f.writelines(file_lines)
-        f.close()
+        file = open(self.base_path+"README.md", "w")
+        file.writelines(file_lines)
+        file.close()
+        return True
