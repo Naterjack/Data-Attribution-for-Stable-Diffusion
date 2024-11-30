@@ -156,7 +156,9 @@ class TRAK_Experiment_Config(TRAK_Config):
             else:
                 EXPERIMENT_SUBTITLE = "_normal_test_dataset"
                 
-        self.EXPERIMENT_NAME = self.MODEL_NAME_CLEAN+EXPERIMENT_SUBTITLE
+            self.EXPERIMENT_NAME = self.MODEL_NAME_CLEAN+EXPERIMENT_SUBTITLE
+        else:
+            self.EXPERIMENT_NAME = self.MODEL_NAME_CLEAN
         
         if TRAK_type==TRAK_Type_Enum.TRAK and (self.model_type == Model_Type_Enum.FULL):
             #if UPDATE_SCORES:
