@@ -210,7 +210,7 @@ class CIFAR_10_Local_Config(CIFAR_10_Config):
                  project_config: Project_Config,
                  dataset_type: Dataset_Type_Enum,
                  #huggingface_slug: str = "uoft-cs/cifar10", 
-                 config_name: str | None = 'full',
+                 config_name: str | None = None,
                  existing_image_column_name: str = "image", 
                  existing_caption_column_name: str = "label", 
                  new_image_column_name: str = "image", 
