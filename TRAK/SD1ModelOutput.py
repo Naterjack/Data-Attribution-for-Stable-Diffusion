@@ -26,6 +26,7 @@ class SD1ModelOutput(trak.modelout_functions.AbstractModelOutput):
     
     noise_scheduler = None
     loss_fn = None
+    num_timesteps_to_sample = 10
 
     @staticmethod
     def TRAK_loss(target: torch.Tensor,
@@ -36,6 +37,11 @@ class SD1ModelOutput(trak.modelout_functions.AbstractModelOutput):
     def DTRAK_loss(target: torch.Tensor,
                    generated: torch.Tensor):
         return F.mse_loss(torch.zeros_like(target), generated)
+    
+    @staticmethod
+    def DTRAK_L1_loss(target: torch.Tensor,
+                      generated: torch.Tensor):
+        return F.l1_loss(torch.zeros_like(target),generated)
 
     def __init__(self,
                  project_config: Project_Config,
@@ -71,8 +77,8 @@ class SD1ModelOutput(trak.modelout_functions.AbstractModelOutput):
             latents: Tensor,
             encoder_hidden_states: Tensor,) -> Tensor:
         
-        latents = latents.unsqueeze(0)
-        encoder_hidden_states = encoder_hidden_states.unsqueeze(0)
+        latents = latents.unsqueeze(0).repeat(SD1ModelOutput.num_timesteps_to_sample,1,1,1)
+        encoder_hidden_states = encoder_hidden_states.unsqueeze(0).repeat(SD1ModelOutput.num_timesteps_to_sample,1,1)
         #This code is (mostly) taken from the original huggingface training code, since their API
         # does not let you get the loss directly
         # The original code can be found here: https://github.com/huggingface/diffusers/blob/v0.30.3/examples/text_to_image/train_text_to_image.py
@@ -82,8 +88,16 @@ class SD1ModelOutput(trak.modelout_functions.AbstractModelOutput):
         # Sample noise that we'll add to the latents
         noise = torch.randn_like(latents)
         bsz = latents.shape[0]
-        # Sample a random timestep for each image
-        timesteps = torch.randint(0, noise_scheduler.config.num_train_timesteps, (bsz,), device=latents.device)
+
+        if SD1ModelOutput.num_timesteps_to_sample == 1:
+            # Sample a random timestep for each image
+            timesteps = torch.randint(0, noise_scheduler.config.num_train_timesteps, (bsz,), device=latents.device)
+        else:
+            timesteps = torch.arange(1, 
+                                     noise_scheduler.config.num_train_timesteps,
+                                     noise_scheduler.config.num_train_timesteps//SD1ModelOutput.num_timesteps_to_sample, 
+                                     dtype=torch.int64,
+                                     device=latents.device)
         timesteps = timesteps.long()
 
         # Add noise to the latents according to the noise magnitude at each timestep
@@ -99,18 +113,15 @@ class SD1ModelOutput(trak.modelout_functions.AbstractModelOutput):
 
         # Predict the noise residual and compute loss
         model_pred = torch.func.functional_call(unet, (weights, buffers), (noisy_latents, timesteps, encoder_hidden_states), {"return_dict":False})
-        target = target.unsqueeze(0)
+        #target = target.unsqueeze(0)
 
-        loss = SD1ModelOutput.loss_fn(target[0], model_pred[0])
-        #
-        #TRAK
-        #
-        #loss = F.mse_loss(target[0], model_pred[0])
+        #print(target.shape)
+        #print(target[0].shape)
+        #print(model_pred[0].shape)
+        #assert(False)
 
-        #
-        #DTRAK
-        #
-        #loss = F.mse_loss(torch.zeros_like(target[0]), model_pred[0])
+        loss = SD1ModelOutput.loss_fn(target, model_pred[0])
+
         return loss
 
     def get_out_to_loss_grad(self, model, weights, buffers, batch: Iterable[Tensor]) -> Tensor:
