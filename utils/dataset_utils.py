@@ -85,7 +85,7 @@ class Dataset_Generator(object):
         file_lines.append("---")
         file_lines.append("configs:")
 
-        file_lines.append("  - config_name: full")
+        file_lines.append("  - config_name: default")
         file_lines.append("    drop_labels: false")
         file_lines.append("    data_files:")
         file_lines.append("      - split: train")
