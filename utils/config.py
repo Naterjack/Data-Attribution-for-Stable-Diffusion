@@ -33,7 +33,7 @@ class Model_Config(object):
                  project_config: Project_Config, 
                  MODEL_TYPE: Model_Type_Enum,
                  DATASET_TYPE: Dataset_Type_Enum,
-                 NUM_CHECKPOINTS: int = 1,
+                 NUM_CHECKPOINTS: int = 10,
                  ITERATIONS_PER_CHECKPOINT: int = 10000) -> None:
         self.project_config = project_config
         self.MODEL_TYPE = validate_enum(MODEL_TYPE, Model_Type_Enum)
