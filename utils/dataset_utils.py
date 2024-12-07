@@ -94,14 +94,18 @@ class Dataset_Generator(object):
         #In order to preserve the indicies, we have to make a README.md in the correct order, 
         # otherwise the dataset is loaded in class order
 
+        #Note that there are two indicies here, i, which is the index in the original dataset
+        #   and this value (j) which is the index in the new dataset
+        j=0
 
         for i, item in enumerate(self.dataset_config.dataset):
             current_caption = item[self.dataset_config.caption_column]
             if current_caption in self.dataset_config.class_captions:
                 if number_items_per_class_tally[current_caption] < number_items_to_keep_per_class:
                     number_items_per_class_tally[current_caption] += 1
-                    item[self.dataset_config.image_column].save(f"{self.base_path_images}{item[self.dataset_config.caption_column]}{f}{i}.png")
-                    file_lines.append(f"          - \"train{f}{item[self.dataset_config.caption_column]}{f}{i}.png\"")
+                    item[self.dataset_config.image_column].save(f"{self.base_path_images}{item[self.dataset_config.caption_column]}{f}{j}.png")
+                    file_lines.append(f"          - \"train{f}{item[self.dataset_config.caption_column]}{f}{j}.png\"")
+                    j=j+1
 
 
         file_lines.append("---")
