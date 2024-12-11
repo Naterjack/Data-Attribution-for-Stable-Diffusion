@@ -20,13 +20,13 @@ import os
 PARENT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(PARENT_DIR)
 from utils.config import Project_Config
-from utils.custom_enums import TRAK_Type_Enum, validate_enum
+from utils.custom_enums import TRAK_Type_Enum, validate_enum, TRAK_Num_Timesteps_Enum
 
 class SD1ModelOutput(trak.modelout_functions.AbstractModelOutput):
     
     noise_scheduler = None
     loss_fn = None
-    num_timesteps_to_sample = 10
+    num_timesteps_to_sample = None
 
     @staticmethod
     def TRAK_loss(target: torch.Tensor,
@@ -46,7 +46,8 @@ class SD1ModelOutput(trak.modelout_functions.AbstractModelOutput):
     def __init__(self,
                  project_config: Project_Config,
                  TRAK_type: TRAK_Type_Enum = TRAK_Type_Enum.TRAK,
-                 BASE_MODEL_DIR: str | None = None) -> None:
+                 BASE_MODEL_DIR: str | None = None,
+                 TRAK_num_timesteps: TRAK_Num_Timesteps_Enum | None = None) -> None:
         #Note that this is the BASE model, not the LoRA fine tuned version, since the LoRA
         #   version doesn't include the noise scheduler
         #super.__init__(self)
@@ -63,6 +64,12 @@ class SD1ModelOutput(trak.modelout_functions.AbstractModelOutput):
                 "sd1-full" + f
             )
         assert(os.path.isdir(p))
+
+        if TRAK_num_timesteps is not None:
+            SD1ModelOutput.num_timesteps_to_sample = TRAK_num_timesteps
+        else:
+            SD1ModelOutput.num_timesteps_to_sample = 10
+
         SD1ModelOutput.noise_scheduler = DDPMScheduler.from_pretrained(p, subfolder="scheduler")
 
         if TRAK_type == TRAK_Type_Enum.DTRAK:

@@ -10,13 +10,14 @@ from SD1ModelOutput import SD1ModelOutput
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from TRAK.TRAK_utils import TRAK_Config
-from utils.custom_enums import TRAK_Type_Enum, Dataset_Type_Enum, Model_Type_Enum
+from utils.custom_enums import TRAK_Type_Enum, TRAK_Num_Timesteps_Enum, Dataset_Type_Enum, Model_Type_Enum
 
 ####CONFIG####
 UPDATE_FEATURIZATION = True
-DATASET_TYPE = Dataset_Type_Enum.CIFAR2
-MODEL_TYPE = Model_Type_Enum.FULL
-TRAK_TYPE = TRAK_Type_Enum.TRAK
+DATASET_TYPE = Dataset_Type_Enum.CIFAR10
+MODEL_TYPE = Model_Type_Enum.LORA
+TRAK_TYPE = TRAK_Type_Enum.DTRAK
+TRAK_TIMESTEPS = TRAK_Num_Timesteps_Enum.TEN
 
 ###GPU PROFILING###
 PROFILE_GPU = False
@@ -43,6 +44,7 @@ trak_config = TRAK_Config(
     model_type=MODEL_TYPE,
     TRAK_type=TRAK_TYPE,
     dataset_type=DATASET_TYPE,
+    TRAK_num_timesteps=TRAK_TIMESTEPS,
 )
 
 if DATASET_TYPE == Dataset_Type_Enum.CIFAR10:

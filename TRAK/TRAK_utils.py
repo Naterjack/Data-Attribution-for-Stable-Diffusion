@@ -12,7 +12,7 @@ PARENT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(PARENT_DIR)
 
 from utils.config import Project_Config, LoRA_Model_Config, Model_Config
-from utils.custom_enums import TRAK_Type_Enum, Dataset_Type_Enum, Model_Type_Enum, validate_enum
+from utils.custom_enums import TRAK_Type_Enum, TRAK_Num_Timesteps_Enum, Dataset_Type_Enum, Model_Type_Enum, validate_enum
 from trak import TRAKer, projectors
 from TRAK.SD1ModelOutput import SD1ModelOutput
 
@@ -21,12 +21,14 @@ class TRAK_Config(object):
                  project_config: Project_Config,
                  model_type: Model_Type_Enum,
                  TRAK_type: TRAK_Type_Enum,
+                 TRAK_num_timesteps: TRAK_Num_Timesteps_Enum,
                  dataset_type: Dataset_Type_Enum,
                  ) -> None:
         self.project_config = project_config
         self.dataset_type = validate_enum(dataset_type, Dataset_Type_Enum)
         self.TRAK_type = validate_enum(TRAK_type, TRAK_Type_Enum)
         self.model_type = validate_enum(model_type, Model_Type_Enum)
+        self.TRAK_num_timesteps = validate_enum(TRAK_num_timesteps, TRAK_Num_Timesteps_Enum)
 
         self.MODEL_NAME_CLEAN = f"sd1-{model_type}"
         #model_dir = f"sd1-{model_type}-{dataset_type}"
@@ -54,7 +56,7 @@ class TRAK_Config(object):
             )
         
         f = project_config.folder_symbol
-        self.TRAK_SAVE_DIR = f"{project_config.PWD}{f}TRAK{f}results{f}{self.dataset_type}{f}{self.TRAK_type}_{self.MODEL_NAME_CLEAN}"
+        self.TRAK_SAVE_DIR = f"{project_config.PWD}{f}TRAK{f}results{f}{self.dataset_type}{f}{self.TRAK_type}_{self.MODEL_NAME_CLEAN}_timestep-{self.TRAK_num_timesteps}"
         #TODO This doesnt do what I want it to
         makedirs(self.TRAK_SAVE_DIR, exist_ok=True)
         print(f"TRAK is being saved to {self.TRAK_SAVE_DIR}")
@@ -102,7 +104,8 @@ class TRAK_Config(object):
 
         model_output = SD1ModelOutput(
             project_config=self.project_config,
-            TRAK_type=self.TRAK_type
+            TRAK_type=self.TRAK_type,
+            TRAK_num_timesteps=self.TRAK_num_timesteps,
         )
         #MODEL_DIR=self.model_config.MODEL_DIR) #Leave this hardcoded since
         #   its the same in all instances
@@ -138,13 +141,14 @@ class TRAK_Experiment_Config(TRAK_Config):
                  project_config: Project_Config,
                  model_type: Model_Type_Enum,
                  TRAK_type: TRAK_Type_Enum,
+                 TRAK_num_timesteps: TRAK_Num_Timesteps_Enum,
                  dataset_type: Dataset_Type_Enum,
                  FORCE_FULL_MODEL_TEST_DATASET: bool
                  ) -> None:
         #FORCE_FULL_MODEL_TEST_DATASET allows for taking a TRAKer instance that 
         # has been featurized on on a LoRA model, and getting scoring it on
         # a "full" model.
-        super().__init__(project_config, model_type, TRAK_type, dataset_type)
+        super().__init__(project_config, model_type, TRAK_type, TRAK_num_timesteps, dataset_type)
         self.FORCE_FULL_MODEL_TEST_DATASET = FORCE_FULL_MODEL_TEST_DATASET
 
         if self.FORCE_FULL_MODEL_TEST_DATASET and (self.model_type == Model_Type_Enum.FULL):

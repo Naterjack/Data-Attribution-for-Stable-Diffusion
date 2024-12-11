@@ -3,6 +3,11 @@ class TRAK_Type_Enum(str, Enum):
     TRAK: str = "TRAK"
     DTRAK: str = "DTRAK"
 
+class TRAK_Num_Timesteps_Enum(int, Enum):
+    ONE: int = 1
+    TEN: int = 10
+    HUNDRED: int = 100
+
 class Dataset_Type_Enum(str, Enum):
     CIFAR10: str = "cifar10"
     CIFAR2: str = "cifar2"
