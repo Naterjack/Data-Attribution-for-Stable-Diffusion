@@ -138,7 +138,7 @@ class Dataset_Generator(object):
         for line in file_lines:
             if len(line) > 2:
                 if line[2] == '-':
-                    if config_name in line:
+                    if line.split(" ")[-1]==config_name:
                         print(f"Config {config_name} already exists!")
                         return False
 
