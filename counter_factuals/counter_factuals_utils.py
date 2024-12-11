@@ -37,6 +37,7 @@ class Counter_Factual_Image_Generator(object):
             self.project_config.PWD + f + 
             "counter_factuals" + f + 
             self.dataset_type + f +
+            self.model_type + f +
             self.counter_factual_model_name
         )
         assert(os.path.isdir(p))
