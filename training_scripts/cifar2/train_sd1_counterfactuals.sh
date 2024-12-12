@@ -1,6 +1,6 @@
 export MODEL_NAME="stable-diffusion-v1-5/stable-diffusion-v1-5"
 export dataset_name="../../datasets/cifar2"
-export config_name="DINO_SD1_Full_frog_seed_1"
+export config_name="DINO_sd1-full_horse_seed_1"
 
 accelerate launch --mixed_precision="fp16" ../../../diffusers/examples/text_to_image/train_text_to_image.py \
   --pretrained_model_name_or_path=$MODEL_NAME \
@@ -16,7 +16,7 @@ accelerate launch --mixed_precision="fp16" ../../../diffusers/examples/text_to_i
   --gradient_checkpointing \
   --resume_from_checkpoint="latest" \
   --checkpointing_steps=1000 \
-  --checkpoints_total_limit=1 \
+  --checkpoints_total_limit=10 \
   --max_train_steps=10000 \
   --learning_rate=1e-05 \
   --max_grad_norm=1 \

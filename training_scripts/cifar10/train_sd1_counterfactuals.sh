@@ -1,6 +1,6 @@
 export MODEL_NAME="stable-diffusion-v1-5/stable-diffusion-v1-5"
 export dataset_name="../../datasets/cifar10"
-export config_name="VAE_sd1-full_frog_seed_1"
+export config_name="DTRAK_sd1-full_timestep_1_frog_seed_1"
 
 accelerate launch --mixed_precision="fp16" ../../../diffusers/examples/text_to_image/train_text_to_image.py \
   --pretrained_model_name_or_path=$MODEL_NAME \

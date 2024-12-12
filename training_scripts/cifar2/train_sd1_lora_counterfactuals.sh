@@ -1,6 +1,6 @@
 export MODEL_NAME="stable-diffusion-v1-5/stable-diffusion-v1-5"
 export dataset_name="../../datasets/cifar2"
-export config_name="DINO_SD1_LoRA_frog_seed_1"
+export config_name="DINO_sd1-lora_horse_seed_1"
 
 accelerate launch --mixed_precision="fp16" ../../../diffusers/examples/text_to_image/train_text_to_image_lora.py \
   --pretrained_model_name_or_path=$MODEL_NAME \
