@@ -82,11 +82,11 @@ In all cases, make sure you match the configuration settings at the top of each 
 - Counter factuals
     - Take the "config_name" printed at the end of the previous python notebook, and set it as the config_name in ```training_scripts/<dataset>/train_sd1_<model_type>_counterfactuals.sh```.
     - Train a counter factual model as follows:
-```
-conda activate SDTraining
-cd training_scripts/<dataset>
-./train_sd1_<model_type>_counterfactuals.sh
-```
+    ```
+    conda activate SDTraining
+    cd training_scripts/<dataset>
+    ./train_sd1_<model_type>_counterfactuals.sh
+    ```
     - Once the counter factual model is trained, rerun the notebook from the previous stage with ```UPDATE_SCORES = False``` to generate a counter factual image.
     - Now run CounterFactualResults.ipynb to obtain image distances on the counter factual images generated.
 
