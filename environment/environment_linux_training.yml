@@ -1,4 +1,4 @@
-name: SD3HF
+name: SDTraining
 channels:
   - pytorch
   - nvidia
@@ -14,7 +14,7 @@ dependencies:
   - pytorch::pytorch-cuda=12.4
   - conda-forge::huggingface_hub
   - conda-forge::transformers
-  - conda-forge::diffusers
+  #- conda-forge::diffusers
   - conda-forge::accelerate
   - conda-forge::sentencepiece
   - conda-forge::protobuf
@@ -24,11 +24,5 @@ dependencies:
   - nbconvert
   - ipykernel
   - jupyterlab
-  
-  #WINDOWS ONLY
-  #- pip:
-    #- xformers
-  #Actually you have to install this manaually to stop it overriding the current version
-  # of torch (and therefore destorying the cuda acceleration). Note that conda doesn't
-  # seem to be able to use flags for pip installs from an environment.yml file.
-  # pip install -U xformers --index-url https://download.pytorch.org/whl/cu121
+
+  #PEFT

@@ -1,0 +1,29 @@
+name: SD3HF
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  #LINUX ONLY
+  - xformers
+dependencies:
+  #- python=3.12.4
+  - pip
+  - pytorch::pytorch #=2.3.1
+  - pytorch::torchvision 
+  - pytorch::torchaudio
+  - pytorch::pytorch-cuda=12.4
+  - conda-forge::huggingface_hub
+  - conda-forge::transformers
+  - conda-forge::diffusers
+  - conda-forge::accelerate
+  - conda-forge::sentencepiece
+  - conda-forge::protobuf
+  - conda-forge::matplotlib
+  #LINUX ONLY
+  - xformers::xformers
+  - nbconvert
+  - ipykernel
+  - jupyterlab
+
+  #PEFT
+  # pip traker[fast]
