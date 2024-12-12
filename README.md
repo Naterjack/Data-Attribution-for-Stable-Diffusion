@@ -1,9 +1,9 @@
 # Data Attribution for Stable Diffusion
 
 ## Requirements:
-Linux x64 OS, (we tested specifically with Ubuntu 24.03)
-A GPU with CUDA support and at least 24GB of VRAM
-At least 64GB of system memory
+- Linux x64 OS, (we tested specifically with Ubuntu 24.04)
+- A GPU with CUDA support and at least 24GB of VRAM
+- At least 64GB of system memory
 
 ## Quickstart Guide
 
