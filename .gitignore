@@ -156,6 +156,7 @@ cython_debug/
 *.tfevents.*
 datasets/*.png
 DINO/*.pt
+VAE/*.pt
 LDS/*/
 
 # Repo specific, stuff from my specific system that is not relevant 
@@ -165,12 +166,29 @@ old_models/*
 testingGround.ipynb
 notes.txt
 old_models/*
+DINO_SCORES_TEMP.npy
+Generate_MOF_For_LDS.ipynb
+LDS_CIFAR10_MOF_CACHE.npy
+#train_sd1_batched_LDS.sh
+train_sd1_batched.sh
+datasetfixing.ipynb
+datasets/*-wrong-indicies
 
 
 # Filter out results data for now such that git doesn't immediately explode
-TRAK/results/*
-models/*
-datasets/*
+TRAK/results/*/*/?/*.mmap
+TRAK/results/*/*broken/
+TRAK/results/*/*rename/
+#models/cifar*/sd1-*/*
+models/*/*/*/
+datasets/cifar*/train/*/*.png
+
 TRAK/ncu_dump/*
+
 TRAK/*trace*.json
 counter_factuals/*/*
+
+!models/cifar10/sd1-lora/pytorch_lora_weights.safetensors
+!models/cifar*/sd1-lora/pytorch_lora_weights.safetensors
+!TRAK/results/*/*/scores/sd-lora_normal_test_dataset.mmap
+!TRAK/results/*/*/scores/sd-full.mmap
