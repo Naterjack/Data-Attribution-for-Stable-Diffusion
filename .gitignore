@@ -177,8 +177,14 @@ datasets/*-wrong-indicies
 
 # Filter out results data for now such that git doesn't immediately explode
 TRAK/results/*/*/?/*.mmap
+TRAK/results/*/*/?/*/*.mmap
+TRAK/results/*/*/scores_old/
+TRAK/results/*/*/scores/*v*.mmap
+TRAK/results/*/*/scores/LoRA*.mmap
+TRAK/results/*/*/scores/Full_normal.mmap
 TRAK/results/*/*broken/
 TRAK/results/*/*rename/
+TRAK/results/*/*/*old.*
 #models/cifar*/sd1-*/*
 models/*/*/*/
 datasets/cifar*/train/*/*.png
